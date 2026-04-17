@@ -10,13 +10,19 @@ const { db } = require("../../database.js");
  */
 
 
-function downloadData(req, res) {
+async function downloadData(req, res) {
     try {
-        const data = db.prepare(`
+        const query = `
             SELECT tasks.*, subjects.name AS subject_name 
             FROM tasks 
-            JOIN subjects ON tasks.subject_id = subjects.id
-        `).all();
+            LEFT JOIN subjects ON tasks.subject_id = subjects.id
+        `;
+        const data = await new Promise((resolve, reject) => {
+            db.all(query, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
 
         const rows = [
             ["Task ID", "Subject", "Title", "Due At", "Status", "Priority", "Confidence Score", "Notes"],
@@ -36,11 +42,11 @@ function downloadData(req, res) {
 
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename="study_data.csv"');
-        res.status(200).send(csvString);
+        return res.status(200).send(csvString);
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Failed to download data" });
+        return res.status(500).json({ message: "Failed to download data" });
     }
 }
 

@@ -1,5 +1,5 @@
 const express = require("express");
-const { downloadData } = require("../controllers/dataExport.controller.js");
+const { downloadData } = require("../controllers/csvDownload.controller.js")
 
 const router = express.Router();
 
