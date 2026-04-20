@@ -1,5 +1,8 @@
 import { store } from './store.js';
 import { extractTasksFromText } from './utils/api.js';
+import { initGlobalErrorBoundary } from './utils/errorBoundary.js';
+
+initGlobalErrorBoundary();
 
 let currentMonthDate = new Date();
 let selectedDate = null;
