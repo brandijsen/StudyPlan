@@ -4,6 +4,7 @@ const cors = require('cors');
 const { db, initDb } = require('./database');
 const { GoogleGenAI } = require('@google/genai');
 const path = require('path');
+const csvDownloadRouter = require('./backend/routers/csvDownload.router.js');
 
 const app = express();
 app.use(cors());
@@ -18,6 +19,10 @@ initDb();
 const ai = process.env.GEMINI_API_KEY
   ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
   : null;
+
+// ============================================================
+// INLINE NLP FALLBACK
+// ============================================================
 
 function nlpAddDays(date, n) {
   const d = new Date(date); d.setDate(d.getDate() + n); return d;
@@ -221,6 +226,12 @@ function nlpExtractTasksFromText(text) {
   return results.slice(0, 10);
 }
 
+// ============================================================
+
+// ============== CSV Download Router ==============
+app.use('/api', csvDownloadRouter);
+
+// ================= SUBJECTS =================
 app.get('/api/subjects', (req, res) => {
   db.all('SELECT * FROM subjects', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -228,6 +239,7 @@ app.get('/api/subjects', (req, res) => {
   });
 });
 
+// ================= TASKS =================
 app.get('/api/tasks', (req, res) => {
   db.all('SELECT * FROM tasks ORDER BY due_at ASC', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -235,6 +247,7 @@ app.get('/api/tasks', (req, res) => {
   });
 });
 
+// ================= ADD TASKS =================
 app.post('/api/tasks', (req, res) => {
   try {
     const tasks = Array.isArray(req.body) ? req.body : [req.body];
@@ -270,13 +283,28 @@ app.post('/api/tasks', (req, res) => {
           if (err) {
             errors.push({ task: t, error: err.message });
           } else if (existing) {
-            duplicates.push({ title: t.title, due_at: t.due_at, subject_id: t.subject_id });
+            duplicates.push({
+              title: t.title,
+              due_at: t.due_at,
+              subject_id: t.subject_id
+            });
           } else {
             const id = 'task_' + Date.now() + Math.random().toString(36).substr(2, 5);
-            stmt.run(id, t.subject_id, t.title, t.due_at, t.status || 'Not Started', t.priority || 'medium', t.confidence_score || 100, t.notes || '',
-              function(insertErr) {
-                if (insertErr) errors.push({ task: t, error: insertErr.message });
-                else inserted++;
+            stmt.run(
+              id,
+              t.subject_id,
+              t.title,
+              t.due_at,
+              t.status || 'Not Started',
+              t.priority || 'medium',
+              t.confidence_score || 100,
+              t.notes || '',
+              function (insertErr) {
+                if (insertErr) {
+                  errors.push({ task: t, error: insertErr.message });
+                } else {
+                  inserted++;
+                }
               }
             );
           }
@@ -286,11 +314,18 @@ app.post('/api/tasks', (req, res) => {
             stmt.finalize((finalErr) => {
               if (finalErr) return res.status(500).json({ success: false, message: "Database error", error: finalErr.message });
               return res.json({
-                success: true, inserted, duplicates, errors,
-                message: errors.length > 0 && duplicates.length > 0 ? "Some tasks failed and some duplicates were skipped"
-                  : errors.length > 0 ? "Some tasks failed to add"
-                  : duplicates.length > 0 ? "Duplicate tasks were skipped"
-                  : "All tasks added successfully"
+                success: true,
+                inserted,
+                duplicates,
+                errors,
+                message:
+                  errors.length > 0 && duplicates.length > 0
+                    ? "Some tasks failed and some duplicates were skipped"
+                    : errors.length > 0
+                      ? "Some tasks failed to add"
+                      : duplicates.length > 0
+                        ? "Duplicate tasks were skipped"
+                        : "All tasks added successfully"
               });
             });
           }
@@ -303,22 +338,37 @@ app.post('/api/tasks', (req, res) => {
   }
 });
 
+// ================= UPDATE =================
 app.put('/api/tasks/:id', (req, res) => {
   const { status } = req.body;
-  if (!status) return res.status(400).json({ error: 'Status is required' });
-  db.run('UPDATE tasks SET status = ? WHERE id = ?', [status, req.params.id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, changes: this.changes });
-  });
+
+  if (!status) {
+    return res.status(400).json({ error: 'Status is required' });
+  }
+
+  db.run(
+    'UPDATE tasks SET status = ? WHERE id = ?',
+    [status, req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, changes: this.changes });
+    }
+  );
 });
 
+// ================= DELETE =================
 app.delete('/api/tasks/:id', (req, res) => {
-  db.run('DELETE FROM tasks WHERE id = ?', [req.params.id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, changes: this.changes });
-  });
+  db.run(
+    'DELETE FROM tasks WHERE id = ?',
+    [req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, changes: this.changes });
+    }
+  );
 });
 
+// ================= AI EXTRACTION =================
 app.post('/api/extract', async (req, res) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: 'Text is required' });
@@ -348,11 +398,12 @@ Text: "${text}"
     }
   }
 
-  // NLP heuristic fallback 
+  // NLP heuristic fallback (no API key, or Gemini failed)
   const tasks = nlpExtractTasksFromText(text);
   return res.json(tasks);
 });
 
+// ================= SERVER =================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Server running on port ' + PORT);
