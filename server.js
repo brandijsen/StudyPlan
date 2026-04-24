@@ -340,20 +340,33 @@ app.post('/api/tasks', (req, res) => {
 
 // ================= UPDATE =================
 app.put('/api/tasks/:id', (req, res) => {
-  const { status } = req.body;
+  const { status, archived } = req.body;
 
-  if (!status) {
-    return res.status(400).json({ error: 'Status is required' });
+  let query = 'UPDATE tasks SET ';
+  const params = [];
+
+  if (status !== undefined) {
+    query += 'status = ? ';
+    params.push(status);
   }
 
-  db.run(
-    'UPDATE tasks SET status = ? WHERE id = ?',
-    [status, req.params.id],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, changes: this.changes });
-    }
-  );
+  if (archived !== undefined) {
+    if (params.length > 0) query += ', ';
+    query += 'archived = ? ';
+    params.push(archived);
+  }
+
+  if (params.length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  query += 'WHERE id = ?';
+  params.push(req.params.id);
+
+  db.run(query, params, function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, changes: this.changes });
+  });
 });
 
 // ================= DELETE =================
