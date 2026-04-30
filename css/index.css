@@ -75,6 +75,65 @@
   }
 }
 
+:root[data-theme="dark"] {
+  --color-background-primary: #181816;
+  --color-background-secondary: #20201e;
+  --color-background-tertiary: #272725;
+  --color-text-primary: #efede5;
+  --color-text-secondary: #a3a198;
+  --color-text-tertiary: #73726c;
+  --color-border-tertiary: rgba(255,255,255,0.06);
+  --color-border-secondary: rgba(255,255,255,0.12);
+  --color-border-primary: rgba(255,255,255,0.22);
+  --color-text-danger: #fc9c9c;
+  --color-background-danger: rgba(252, 156, 156, 0.15);
+  --color-border-danger: rgba(252,156,156,0.3);
+  
+  --color-text-info: #9ecdfc;
+  --color-background-info: rgba(158, 205, 252, 0.15);
+  --color-border-info: rgba(158,205,252,0.3);
+  
+  --color-text-success: #a0d45a;
+  --color-background-success: rgba(160, 212, 90, 0.15);
+  --color-border-success: rgba(160,212,90,0.3);
+
+  --color-text-warning: #fab35e;
+  --color-background-warning: rgba(250, 179, 94, 0.15);
+
+  --color-text-purple: #b9b5f5;
+  --color-background-purple: rgba(185, 181, 245, 0.15);
+}
+
+:root[data-theme="light"] {
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f7f7f5;
+  --color-background-tertiary: #efefec;
+  --color-text-primary: #1a1a18;
+  --color-text-secondary: #6b6b66;
+  --color-text-tertiary: #9c9a92;
+  --color-border-tertiary: rgba(0,0,0,0.08); 
+  --color-border-secondary: rgba(0,0,0,0.15); 
+  --color-border-primary: rgba(0,0,0,0.30);
+  
+  --color-text-danger: #a32d2d;
+  --color-background-danger: #fcebeb;
+  --color-border-danger: rgba(163, 45, 45, 0.35);
+  
+  --color-text-info: #185fa5;
+  --color-background-info: #e6f1fb;
+  --color-border-info: rgba(24, 95, 165, 0.35);
+  
+  --color-text-success: #166534;
+  --color-background-success: #eaf3de;
+  --color-border-success: rgba(22, 101, 52, 0.35);
+
+  --color-text-warning: #854f0b;
+  --color-background-warning: #faeeda;
+  
+  --color-text-purple: #3c3489;
+  --color-background-purple: #eeedfe;
+}
+
 body {
   font-family: var(--font-sans);
   background: var(--color-background-tertiary);
@@ -424,3 +483,64 @@ body {
 .footer-links a:hover {
   color: var(--color-text-primary);
 }
+
+/* Settings Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.toggle-switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--color-border-primary);
+  transition: .3s;
+  border-radius: 24px;
+}
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--color-background-primary);
+  transition: .3s;
+  border-radius: 50%;
+}
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--color-text-success);
+}
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+/* Compact View utility classes */
+body.compact-view {
+  padding: 16px 8px;
+}
+body.compact-view .app {
+  height: 600px;
+}
+body.compact-view .task-item {
+  padding: 8px 10px;
+  margin-bottom: 4px;
+}
+body.compact-view .nav-item {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+body.compact-view .topbar {
+  padding: 12px 16px;
+}
+body.compact-view .cal-section,
+body.compact-view .tasks-section {
+  padding: 12px 16px;
+}
