@@ -123,26 +123,66 @@ function renderTasks() {
       else if(sub.code === 'English') pillClass = 'pill-purple';
       else pillClass = 'pill-amber';
       
-      const archiveBtn = !t.archived 
-        ? `<button class="task-btn archive-task-btn" data-id="${t.id}" title="Archive">Archive</button>`
-        : `<button class="task-btn task-btn-info restore-task-btn" data-id="${t.id}" title="Restore">Restore</button>
-           <button class="task-btn task-btn-danger delete-task-btn" data-id="${t.id}" title="Permanent Delete">Delete</button>`;
+      if (t._isEditing) {
+        let subjectOptions = subjects.map(s => 
+          `<option value="${s.id}" ${s.id === t.subject_id ? 'selected' : ''}>${s.name}</option>`
+        ).join('');
+        
+        const localDate = t.due_at ? new Date(t.due_at).toISOString().substring(0, 16) : '';
+        const isHighPriority = t.priority === 'high';
+        
+        html += `
+          <div class="task-item" style="display:block; padding:12px; cursor:default;" data-id="${t.id}">
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Subject</label>
+            <select class="board-edit-subject edit-field" style="width:100%; margin-bottom: 12px; font-size:12px; padding:4px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+              ${subjectOptions}
+            </select>
 
-      html += `
-        <div class="task-item ${isUrgent ? 'urgent' : ''} ${isDone ? 'done' : ''}" data-id="${t.id}">
-          <div class="task-check ${isDone ? 'done' : ''}"></div>
-          <div class="task-info">
-            <div class="task-name">${t.title}</div>
-            <div class="task-meta">
-              <span class="task-pill ${isDone ? 'pill-green' : (isUrgent ? 'pill-red' : 'pill-amber')}">${isDone ? 'Done' : 'Due ' + formatDate(t.due_at)}</span>
-              <span class="task-pill ${pillClass}">${sub.short_code}</span>
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Task Name</label>
+            <input class="board-edit-title edit-field" type="text" value="${t.title}" style="width:100%; margin-bottom: 12px; font-size:13px; font-weight:600; padding:6px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Deadline</label>
+            <input class="board-edit-date edit-field" type="datetime-local" value="${localDate}" style="width:100%; margin-bottom: 12px; font-size:12px; padding:6px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Notes</label>
+            <input class="board-edit-notes edit-field" type="text" value="${t.notes || ''}" placeholder="Notes..." style="width:100%; margin-bottom: 12px; font-size:12px; padding:6px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Priority</label>
+            <select class="board-edit-priority edit-field" style="width:100%; margin-bottom: 12px; font-size:12px; padding:4px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+              <option value="medium" ${!isHighPriority ? 'selected' : ''}>Medium</option>
+              <option value="high" ${isHighPriority ? 'selected' : ''}>High</option>
+            </select>
+
+            <div style="display:flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+              <button class="btn cancel-board-edit-btn" data-id="${t.id}" style="padding: 6px 12px; font-size: 11px; background: var(--color-background-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border-secondary);">Cancel</button>
+              <button class="btn btn-primary save-board-edit-btn" data-id="${t.id}" style="padding: 6px 12px; font-size: 11px;">Save</button>
             </div>
           </div>
-          <div class="task-actions">
-            ${archiveBtn}
+        `;
+      } else {
+        const archiveBtn = !t.archived 
+          ? `<button class="task-btn edit-task-btn" data-id="${t.id}" title="Edit">✏️ Edit</button>
+             <button class="task-btn archive-task-btn" data-id="${t.id}" title="Archive">Archive</button>`
+          : `<button class="task-btn edit-task-btn" data-id="${t.id}" title="Edit">✏️ Edit</button>
+             <button class="task-btn task-btn-info restore-task-btn" data-id="${t.id}" title="Restore">Restore</button>
+             <button class="task-btn task-btn-danger delete-task-btn" data-id="${t.id}" title="Permanent Delete">Delete</button>`;
+
+        html += `
+          <div class="task-item ${isUrgent ? 'urgent' : ''} ${isDone ? 'done' : ''}" data-id="${t.id}">
+            <div class="task-check ${isDone ? 'done' : ''}"></div>
+            <div class="task-info">
+              <div class="task-name">${t.title}</div>
+              <div class="task-meta">
+                <span class="task-pill ${isDone ? 'pill-green' : (isUrgent ? 'pill-red' : 'pill-amber')}">${isDone ? 'Done' : 'Due ' + formatDate(t.due_at)}</span>
+                <span class="task-pill ${pillClass}">${sub.short_code}</span>
+              </div>
+            </div>
+            <div class="task-actions">
+              ${archiveBtn}
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      }
     });
     html += `</div>`;
     return html;
@@ -185,7 +225,48 @@ function renderTasks() {
   document.querySelectorAll('.task-item').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.task-actions') || e.target.closest('.task-check')) return;
-      store.toggleTaskStatus(el.dataset.id);
+      
+      const taskId = el.dataset.id;
+      const task = store.tasks.find(t => String(t.id) === String(taskId));
+      if (task && task._isEditing) return;
+      
+      store.toggleTaskStatus(taskId);
+    });
+  });
+
+  document.querySelectorAll('.edit-task-btn').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.setTaskEditing(el.dataset.id, true);
+    });
+  });
+
+  document.querySelectorAll('.cancel-board-edit-btn').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.setTaskEditing(el.dataset.id, false);
+    });
+  });
+
+  document.querySelectorAll('.save-board-edit-btn').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const taskId = el.dataset.id;
+      const itemEl = el.closest('.task-item');
+      
+      const title = itemEl.querySelector('.board-edit-title').value;
+      const subject_id = itemEl.querySelector('.board-edit-subject').value;
+      let dateVal = itemEl.querySelector('.board-edit-date').value;
+      const notes = itemEl.querySelector('.board-edit-notes').value;
+      const priority = itemEl.querySelector('.board-edit-priority').value;
+      
+      store.updateTask(taskId, {
+        title,
+        subject_id,
+        due_at: dateVal ? new Date(dateVal).toISOString() : '',
+        notes,
+        priority
+      });
     });
   });
 
