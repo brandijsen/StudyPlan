@@ -67,7 +67,7 @@
         All Tasks
         <span class="badge">7</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="focus-mode-btn">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Focus Mode
       </div>
@@ -121,6 +121,43 @@
       <!-- Tasks -->
       <div id="tasks-section" class="tasks-section">
         <!-- Javascript will inject tasks here -->
+      </div>
+
+      <!-- Focus Mode -->
+      <div id="focus-section" class="focus-section hidden">
+        <div class="focus-dashboard">
+          <div class="timer-container">
+            <svg class="timer-svg" viewBox="0 0 100 100">
+              <circle class="timer-path-elapsed" cx="50" cy="50" r="45" />
+              <path id="timer-path-remaining" stroke-dasharray="283" class="timer-path-remaining" d="
+                M 50, 50
+                m -45, 0
+                a 45,45 0 1,0 90,0
+                a 45,45 0 1,0 -90,0
+              "></path>
+            </svg>
+            <div id="timer-text" class="timer-text">25:00</div>
+          </div>
+          <div class="timer-controls">
+            <button id="timer-start-btn" class="btn btn-primary">Start Focus</button>
+            <button id="timer-pause-btn" class="btn hidden">Pause</button>
+            <button id="timer-reset-btn" class="btn">Reset</button>
+          </div>
+          
+          <div class="focus-task-container">
+            <div class="focus-task-header">Current Focus Task</div>
+            <div id="active-focus-task" class="active-focus-task">
+              <div class="no-task-selected">No task selected. Choose one below.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="focus-task-selector">
+          <div class="focus-task-header">Select a task to focus on</div>
+          <div id="focus-task-list" class="focus-task-list">
+            <!-- JS will populate tasks -->
+          </div>
+        </div>
       </div>
     </div>
 
