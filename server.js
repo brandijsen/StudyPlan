@@ -344,27 +344,25 @@ app.post('/api/tasks', (req, res) => {
 
 // ================= UPDATE =================
 app.put('/api/tasks/:id', (req, res) => {
-  const { status, archived } = req.body;
+  const { status, archived, title, subject_id, due_at, notes, priority } = req.body;
 
   let query = 'UPDATE tasks SET ';
   const params = [];
+  const updates = [];
 
-  if (status !== undefined) {
-    query += 'status = ? ';
-    params.push(status);
-  }
+  if (status !== undefined) { updates.push('status = ?'); params.push(status); }
+  if (archived !== undefined) { updates.push('archived = ?'); params.push(archived); }
+  if (title !== undefined) { updates.push('title = ?'); params.push(title); }
+  if (subject_id !== undefined) { updates.push('subject_id = ?'); params.push(subject_id); }
+  if (due_at !== undefined) { updates.push('due_at = ?'); params.push(due_at); }
+  if (notes !== undefined) { updates.push('notes = ?'); params.push(notes); }
+  if (priority !== undefined) { updates.push('priority = ?'); params.push(priority); }
 
-  if (archived !== undefined) {
-    if (params.length > 0) query += ', ';
-    query += 'archived = ? ';
-    params.push(archived);
-  }
-
-  if (params.length === 0) {
+  if (updates.length === 0) {
     return res.status(400).json({ error: 'No fields to update' });
   }
 
-  query += 'WHERE id = ?';
+  query += updates.join(', ') + ' WHERE id = ?';
   params.push(req.params.id);
 
   db.run(query, params, function (err) {
@@ -418,6 +416,32 @@ Text: "${text}"
   // NLP heuristic fallback (no API key, or Gemini failed)
   const tasks = nlpExtractTasksFromText(text);
   return res.json(tasks);
+});
+// ================= AUTH =================
+const users = {}; // Simple in-memory user store
+
+app.post('/api/auth/signup', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+  if (users[email]) {
+    return res.status(400).json({ error: 'User already exists' });
+  }
+  users[email] = { email, password };
+  res.json({ success: true, message: 'Account created successfully' });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+  const user = users[email];
+  if (!user || user.password !== password) {
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+  res.json({ success: true, email: user.email });
 });
 
 // Intentional test route for verifying server error page behavior.
