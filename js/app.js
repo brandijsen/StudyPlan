@@ -117,13 +117,15 @@ timerDurationInput.addEventListener('change', () => {
 const panelToggleBtn = document.getElementById('panel-toggle-btn');
 const panelToggleIcon = document.getElementById('panel-toggle-icon');
 const panel = document.querySelector('.panel');
+const appEl = document.querySelector('.app');
 let panelCollapsed = false;
 
 if (panelToggleBtn) {
   panelToggleBtn.addEventListener('click', () => {
     panelCollapsed = !panelCollapsed;
     panel.classList.toggle('panel-collapsed', panelCollapsed);
-    // Flip arrow direction
+    appEl.style.transition = 'grid-template-columns 0.3s cubic-bezier(0.4,0,0.2,1)';
+    appEl.style.setProperty('--panel-width', panelCollapsed ? '48px' : '340px');
     panelToggleIcon.style.transform = panelCollapsed ? 'rotate(180deg)' : '';
   });
 }
