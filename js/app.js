@@ -15,6 +15,17 @@ const extractBtn = document.getElementById('extract-btn');
 const clearBtn = document.getElementById('clear-btn');
 const addItemsBtn = document.getElementById('add-btn');
 const downloadBtn = document.getElementById('download-btn');
+const newTaskBtn = document.getElementById('add-task-btn');
+
+
+
+const newTaskModal = document.getElementById('new-task-modal');
+const newTaskSubject = document.getElementById('new-task-subject');
+const newTaskTitle = document.getElementById('new-task-title');
+const newTaskDate = document.getElementById('new-task-date');
+const newTaskNotes = document.getElementById('new-task-notes');
+const newTaskCancel = document.getElementById('new-task-cancel');
+const newTaskSave = document.getElementById('new-task-save');
 
 function formatDate(dateStr) {
   if (!dateStr) return 'No Date';
@@ -547,6 +558,79 @@ document.addEventListener('DOMContentLoaded', () => {
     currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
     renderCalendar();
   });
+
+
+//NEw Task addition event listeners
+newTaskBtn.addEventListener('click', () => {
+  
+  if (!store.subjects || store.subjects.length === 0) {
+    alert('Subjects are still loading. Please try again in a moment.');
+    return;
+  }
+
+  newTaskSubject.innerHTML = store.subjects
+    .map(s => `<option value="${s.id}">${s.name}</option>`)
+    .join('');
+
+
+  if (selectedDate) {
+    const d = new Date(selectedDate);
+    d.setHours(18, 0, 0, 0); 
+    newTaskDate.value = d.toISOString().substring(0, 16);
+  } else {
+    newTaskDate.value = '';
+  }
+
+  newTaskTitle.value = '';
+  newTaskNotes.value = '';
+
+  newTaskModal.style.display = 'flex';
+});
+
+newTaskCancel.addEventListener('click', () => {
+  newTaskModal.style.display = 'none';
+});
+
+newTaskModal.addEventListener('click', (e) => {
+  if (e.target === newTaskModal) {
+    newTaskModal.style.display = 'none';
+  }
+});
+
+newTaskSave.addEventListener('click', async () => {
+  const title = newTaskTitle.value.trim();
+  const subject_id = newTaskSubject.value;
+  const notes = newTaskNotes.value.trim();
+  const dateVal = newTaskDate.value;
+
+  if (!title) {
+    alert('Please enter a task name');
+    return;
+  }
+
+  const due_at = dateVal ? new Date(dateVal).toISOString() : '';
+
+  const newTask = {
+    title,
+    subject_id,
+    due_at,
+    notes,
+    priority: 'medium',
+    status: 'Not Started',
+    archived: 0
+  };
+
+  await store.addTasks([newTask]);
+  newTaskModal.style.display = 'none';
+});
+
+addItemsBtn.addEventListener('click', () => {
+  if (store.currentPaste) {
+    store.addTasks(store.currentPaste);
+    store.clearExtracted();
+    pasteInput.value = '';
+  }
+});
 });
 
 extractBtn.addEventListener('click', async () => {
