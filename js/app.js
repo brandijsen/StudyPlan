@@ -1,5 +1,8 @@
 import { store } from './store.js';
 import { extractTasksFromText } from './utils/api.js';
+import { initGlobalErrorBoundary } from './utils/errorBoundary.js';
+
+initGlobalErrorBoundary();
 
 let currentMonthDate = new Date();
 let selectedDate = null;
@@ -12,6 +15,17 @@ const extractBtn = document.getElementById('extract-btn');
 const clearBtn = document.getElementById('clear-btn');
 const addItemsBtn = document.getElementById('add-btn');
 const downloadBtn = document.getElementById('download-btn');
+const newTaskBtn = document.getElementById('add-task-btn');
+
+
+
+const newTaskModal = document.getElementById('new-task-modal');
+const newTaskSubject = document.getElementById('new-task-subject');
+const newTaskTitle = document.getElementById('new-task-title');
+const newTaskDate = document.getElementById('new-task-date');
+const newTaskNotes = document.getElementById('new-task-notes');
+const newTaskCancel = document.getElementById('new-task-cancel');
+const newTaskSave = document.getElementById('new-task-save');
 
 function formatDate(dateStr) {
   if (!dateStr) return 'No Date';
@@ -123,26 +137,66 @@ function renderTasks() {
       else if(sub.code === 'English') pillClass = 'pill-purple';
       else pillClass = 'pill-amber';
       
-      const archiveBtn = !t.archived 
-        ? `<button class="task-btn archive-task-btn" data-id="${t.id}" title="Archive">Archive</button>`
-        : `<button class="task-btn task-btn-info restore-task-btn" data-id="${t.id}" title="Restore">Restore</button>
-           <button class="task-btn task-btn-danger delete-task-btn" data-id="${t.id}" title="Permanent Delete">Delete</button>`;
+      if (t._isEditing) {
+        let subjectOptions = subjects.map(s => 
+          `<option value="${s.id}" ${s.id === t.subject_id ? 'selected' : ''}>${s.name}</option>`
+        ).join('');
+        
+        const localDate = t.due_at ? new Date(t.due_at).toISOString().substring(0, 16) : '';
+        const isHighPriority = t.priority === 'high';
+        
+        html += `
+          <div class="task-item" style="display:block; padding:12px; cursor:default;" data-id="${t.id}">
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Subject</label>
+            <select class="board-edit-subject edit-field" style="width:100%; margin-bottom: 12px; font-size:12px; padding:4px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+              ${subjectOptions}
+            </select>
 
-      html += `
-        <div class="task-item ${isUrgent ? 'urgent' : ''} ${isDone ? 'done' : ''}" data-id="${t.id}">
-          <div class="task-check ${isDone ? 'done' : ''}"></div>
-          <div class="task-info">
-            <div class="task-name">${t.title}</div>
-            <div class="task-meta">
-              <span class="task-pill ${isDone ? 'pill-green' : (isUrgent ? 'pill-red' : 'pill-amber')}">${isDone ? 'Done' : 'Due ' + formatDate(t.due_at)}</span>
-              <span class="task-pill ${pillClass}">${sub.short_code}</span>
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Task Name</label>
+            <input class="board-edit-title edit-field" type="text" value="${t.title}" style="width:100%; margin-bottom: 12px; font-size:13px; font-weight:600; padding:6px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Deadline</label>
+            <input class="board-edit-date edit-field" type="datetime-local" value="${localDate}" style="width:100%; margin-bottom: 12px; font-size:12px; padding:6px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Notes</label>
+            <input class="board-edit-notes edit-field" type="text" value="${t.notes || ''}" placeholder="Notes..." style="width:100%; margin-bottom: 12px; font-size:12px; padding:6px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+
+            <label style="display:block; font-size:10px; font-weight:700; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Priority</label>
+            <select class="board-edit-priority edit-field" style="width:100%; margin-bottom: 12px; font-size:12px; padding:4px; border: 1px solid var(--color-border-secondary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary);">
+              <option value="medium" ${!isHighPriority ? 'selected' : ''}>Medium</option>
+              <option value="high" ${isHighPriority ? 'selected' : ''}>High</option>
+            </select>
+
+            <div style="display:flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+              <button class="btn cancel-board-edit-btn" data-id="${t.id}" style="padding: 6px 12px; font-size: 11px; background: var(--color-background-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border-secondary);">Cancel</button>
+              <button class="btn btn-primary save-board-edit-btn" data-id="${t.id}" style="padding: 6px 12px; font-size: 11px;">Save</button>
             </div>
           </div>
-          <div class="task-actions">
-            ${archiveBtn}
+        `;
+      } else {
+        const archiveBtn = !t.archived 
+          ? `<button class="task-btn edit-task-btn" data-id="${t.id}" title="Edit">✏️ Edit</button>
+             <button class="task-btn archive-task-btn" data-id="${t.id}" title="Archive">Archive</button>`
+          : `<button class="task-btn edit-task-btn" data-id="${t.id}" title="Edit">✏️ Edit</button>
+             <button class="task-btn task-btn-info restore-task-btn" data-id="${t.id}" title="Restore">Restore</button>
+             <button class="task-btn task-btn-danger delete-task-btn" data-id="${t.id}" title="Permanent Delete">Delete</button>`;
+
+        html += `
+          <div class="task-item ${isUrgent ? 'urgent' : ''} ${isDone ? 'done' : ''}" data-id="${t.id}">
+            <div class="task-check ${isDone ? 'done' : ''}"></div>
+            <div class="task-info">
+              <div class="task-name">${t.title}</div>
+              <div class="task-meta">
+                <span class="task-pill ${isDone ? 'pill-green' : (isUrgent ? 'pill-red' : 'pill-amber')}">${isDone ? 'Done' : 'Due ' + formatDate(t.due_at)}</span>
+                <span class="task-pill ${pillClass}">${sub.short_code}</span>
+              </div>
+            </div>
+            <div class="task-actions">
+              ${archiveBtn}
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      }
     });
     html += `</div>`;
     return html;
@@ -185,7 +239,48 @@ function renderTasks() {
   document.querySelectorAll('.task-item').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.task-actions') || e.target.closest('.task-check')) return;
-      store.toggleTaskStatus(el.dataset.id);
+      
+      const taskId = el.dataset.id;
+      const task = store.tasks.find(t => String(t.id) === String(taskId));
+      if (task && task._isEditing) return;
+      
+      store.toggleTaskStatus(taskId);
+    });
+  });
+
+  document.querySelectorAll('.edit-task-btn').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.setTaskEditing(el.dataset.id, true);
+    });
+  });
+
+  document.querySelectorAll('.cancel-board-edit-btn').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.setTaskEditing(el.dataset.id, false);
+    });
+  });
+
+  document.querySelectorAll('.save-board-edit-btn').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const taskId = el.dataset.id;
+      const itemEl = el.closest('.task-item');
+      
+      const title = itemEl.querySelector('.board-edit-title').value;
+      const subject_id = itemEl.querySelector('.board-edit-subject').value;
+      let dateVal = itemEl.querySelector('.board-edit-date').value;
+      const notes = itemEl.querySelector('.board-edit-notes').value;
+      const priority = itemEl.querySelector('.board-edit-priority').value;
+      
+      store.updateTask(taskId, {
+        title,
+        subject_id,
+        due_at: dateVal ? new Date(dateVal).toISOString() : '',
+        notes,
+        priority
+      });
     });
   });
 
@@ -463,6 +558,79 @@ document.addEventListener('DOMContentLoaded', () => {
     currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
     renderCalendar();
   });
+
+
+//NEw Task addition event listeners
+newTaskBtn.addEventListener('click', () => {
+  
+  if (!store.subjects || store.subjects.length === 0) {
+    alert('Subjects are still loading. Please try again in a moment.');
+    return;
+  }
+
+  newTaskSubject.innerHTML = store.subjects
+    .map(s => `<option value="${s.id}">${s.name}</option>`)
+    .join('');
+
+
+  if (selectedDate) {
+    const d = new Date(selectedDate);
+    d.setHours(18, 0, 0, 0); 
+    newTaskDate.value = d.toISOString().substring(0, 16);
+  } else {
+    newTaskDate.value = '';
+  }
+
+  newTaskTitle.value = '';
+  newTaskNotes.value = '';
+
+  newTaskModal.style.display = 'flex';
+});
+
+newTaskCancel.addEventListener('click', () => {
+  newTaskModal.style.display = 'none';
+});
+
+newTaskModal.addEventListener('click', (e) => {
+  if (e.target === newTaskModal) {
+    newTaskModal.style.display = 'none';
+  }
+});
+
+newTaskSave.addEventListener('click', async () => {
+  const title = newTaskTitle.value.trim();
+  const subject_id = newTaskSubject.value;
+  const notes = newTaskNotes.value.trim();
+  const dateVal = newTaskDate.value;
+
+  if (!title) {
+    alert('Please enter a task name');
+    return;
+  }
+
+  const due_at = dateVal ? new Date(dateVal).toISOString() : '';
+
+  const newTask = {
+    title,
+    subject_id,
+    due_at,
+    notes,
+    priority: 'medium',
+    status: 'Not Started',
+    archived: 0
+  };
+
+  await store.addTasks([newTask]);
+  newTaskModal.style.display = 'none';
+});
+
+addItemsBtn.addEventListener('click', () => {
+  if (store.currentPaste) {
+    store.addTasks(store.currentPaste);
+    store.clearExtracted();
+    pasteInput.value = '';
+  }
+});
 });
 
 extractBtn.addEventListener('click', async () => {
