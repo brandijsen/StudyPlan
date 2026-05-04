@@ -232,15 +232,81 @@ function nlpExtractTasksFromText(text) {
 
 // ============================================================
 
-// ============== CSV Download Router ==============
-app.use('/api', csvDownloadRouter);
-
 // ================= SUBJECTS =================
+function deriveSubjectShortCode(name) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'SUB';
+  if (words.length === 1) {
+    const w = words[0].replace(/[^a-zA-Z0-9]/g, '');
+    return (w.slice(0, 8).toUpperCase() || 'SUB');
+  }
+  let initials = words
+    .map((w) => w.replace(/[^a-zA-Z0-9]/g, '').charAt(0))
+    .join('')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase();
+  if (initials.length > 8) initials = initials.slice(0, 8);
+  if (initials.length >= 2) return initials;
+  const w = words[0].replace(/[^a-zA-Z0-9]/g, '');
+  return (w.slice(0, 8).toUpperCase() || 'SUB');
+}
+
 app.get('/api/subjects', (req, res) => {
   db.all('SELECT * FROM subjects', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
+});
+
+const ALLOWED_SUBJECT_COLORS = new Set([
+  'var(--color-text-info)',
+  'var(--color-text-success)',
+  'var(--color-text-purple)',
+  'var(--color-text-warning)',
+  'var(--color-text-danger)',
+  'var(--color-text-primary)',
+]);
+
+app.post('/api/subjects', (req, res) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const color = typeof req.body?.color === 'string' ? req.body.color.trim() : '';
+  if (!name || !color) {
+    return res.status(400).json({ success: false, message: 'Name and color are required' });
+  }
+  if (!ALLOWED_SUBJECT_COLORS.has(color)) {
+    return res.status(400).json({ success: false, message: 'Invalid color' });
+  }
+
+  db.get(
+    'SELECT id FROM subjects WHERE LOWER(TRIM(name)) = LOWER(?)',
+    [name],
+    (err, row) => {
+      if (err) return res.status(500).json({ success: false, message: err.message });
+      if (row) {
+        return res.status(409).json({ success: false, message: 'A subject with this name already exists' });
+      }
+
+      const id = 'sub_' + Date.now() + Math.random().toString(36).substr(2, 5);
+      const short_code = deriveSubjectShortCode(name);
+
+      db.run(
+        'INSERT INTO subjects (id, name, short_code, color) VALUES (?, ?, ?, ?)',
+        [id, name, short_code, color],
+        function (insertErr) {
+          if (insertErr) return res.status(500).json({ success: false, message: insertErr.message });
+          db.get('SELECT * FROM subjects WHERE id = ?', [id], (e2, created) => {
+            if (e2 || !created) {
+              return res.status(500).json({
+                success: false,
+                message: e2?.message || 'Failed to load created subject'
+              });
+            }
+            res.status(201).json(created);
+          });
+        }
+      );
+    }
+  );
 });
 
 // ================= TASKS =================
@@ -443,6 +509,9 @@ app.post('/api/auth/login', (req, res) => {
   }
   res.json({ success: true, email: user.email });
 });
+
+// CSV download (mounted after other /api routes so it does not shadow them)
+app.use('/api', csvDownloadRouter);
 
 // Intentional test route for verifying server error page behavior.
 app.get('/debug/force-error', (req, res, next) => {

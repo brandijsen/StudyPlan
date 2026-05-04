@@ -27,10 +27,44 @@ const newTaskNotes = document.getElementById('new-task-notes');
 const newTaskCancel = document.getElementById('new-task-cancel');
 const newTaskSave = document.getElementById('new-task-save');
 
+const newSubjectModal = document.getElementById('new-subject-modal');
+const newSubjectName = document.getElementById('new-subject-name');
+const newSubjectCancel = document.getElementById('new-subject-cancel');
+const newSubjectSave = document.getElementById('new-subject-save');
+const addSubjectBtn = document.getElementById('add-subject-btn');
+const newSubjectSwatches = document.getElementById('new-subject-swatches');
+
 function formatDate(dateStr) {
   if (!dateStr) return 'No Date';
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text == null ? '' : String(text);
+  return div.innerHTML;
+}
+
+function renderSubjectsSidebar() {
+  const container = document.getElementById('subjects-list');
+  if (!container) return;
+
+  if (!store.subjects || store.subjects.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const tasks = store.tasks || [];
+  container.innerHTML = store.subjects
+    .map((s) => {
+      const count = tasks.filter(
+        (t) => !t.archived && String(t.subject_id) === String(s.id)
+      ).length;
+      const color = s.color || 'var(--color-text-secondary)';
+      return `<div class="nav-item subject-sidebar-row"><span class="nav-dot" style="background:${color}"></span>${escapeHtml(s.name)}<span class="badge">${count}</span></div>`;
+    })
+    .join('');
 }
 
 async function downloadData() {
@@ -515,6 +549,7 @@ function renderExtraction() {
 store.subscribe(renderTasks);
 store.subscribe(renderExtraction);
 store.subscribe(renderCalendar);
+store.subscribe(renderSubjectsSidebar);
 
 document.addEventListener('DOMContentLoaded', () => {
   store.fetchInitialData();
@@ -559,108 +594,141 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCalendar();
   });
 
+  newTaskBtn.addEventListener('click', () => {
+    if (!store.subjects || store.subjects.length === 0) {
+      alert('Subjects are still loading. Please try again in a moment.');
+      return;
+    }
 
-//NEw Task addition event listeners
-newTaskBtn.addEventListener('click', () => {
-  
-  if (!store.subjects || store.subjects.length === 0) {
-    alert('Subjects are still loading. Please try again in a moment.');
-    return;
-  }
+    newTaskSubject.innerHTML = store.subjects
+      .map((s) => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`)
+      .join('');
 
-  newTaskSubject.innerHTML = store.subjects
-    .map(s => `<option value="${s.id}">${s.name}</option>`)
-    .join('');
+    if (selectedDate) {
+      const d = new Date(selectedDate);
+      d.setHours(18, 0, 0, 0);
+      newTaskDate.value = d.toISOString().substring(0, 16);
+    } else {
+      newTaskDate.value = '';
+    }
 
+    newTaskTitle.value = '';
+    newTaskNotes.value = '';
 
-  if (selectedDate) {
-    const d = new Date(selectedDate);
-    d.setHours(18, 0, 0, 0); 
-    newTaskDate.value = d.toISOString().substring(0, 16);
-  } else {
-    newTaskDate.value = '';
-  }
+    newTaskModal.style.display = 'flex';
+  });
 
-  newTaskTitle.value = '';
-  newTaskNotes.value = '';
-
-  newTaskModal.style.display = 'flex';
-});
-
-newTaskCancel.addEventListener('click', () => {
-  newTaskModal.style.display = 'none';
-});
-
-newTaskModal.addEventListener('click', (e) => {
-  if (e.target === newTaskModal) {
+  newTaskCancel.addEventListener('click', () => {
     newTaskModal.style.display = 'none';
+  });
+
+  newTaskModal.addEventListener('click', (e) => {
+    if (e.target === newTaskModal) {
+      newTaskModal.style.display = 'none';
+    }
+  });
+
+  newTaskSave.addEventListener('click', async () => {
+    const title = newTaskTitle.value.trim();
+    const subject_id = newTaskSubject.value;
+    const notes = newTaskNotes.value.trim();
+    const dateVal = newTaskDate.value;
+
+    if (!title) {
+      alert('Please enter a task name');
+      return;
+    }
+
+    const due_at = dateVal ? new Date(dateVal).toISOString() : '';
+
+    const newTask = {
+      title,
+      subject_id,
+      due_at,
+      notes,
+      priority: 'medium',
+      status: 'Not Started',
+      archived: 0
+    };
+
+    await store.addTasks([newTask]);
+    newTaskModal.style.display = 'none';
+  });
+
+  function resetNewSubjectModal() {
+    newSubjectName.value = '';
+    newSubjectSwatches.querySelectorAll('.subject-color-swatch').forEach((btn, i) => {
+      btn.classList.toggle('selected', i === 0);
+    });
   }
-});
 
-newTaskSave.addEventListener('click', async () => {
-  const title = newTaskTitle.value.trim();
-  const subject_id = newTaskSubject.value;
-  const notes = newTaskNotes.value.trim();
-  const dateVal = newTaskDate.value;
-
-  if (!title) {
-    alert('Please enter a task name');
-    return;
+  function getSelectedSubjectColor() {
+    const sel = newSubjectSwatches.querySelector('.subject-color-swatch.selected');
+    return sel?.dataset.color || 'var(--color-text-info)';
   }
 
-  const due_at = dateVal ? new Date(dateVal).toISOString() : '';
+  newSubjectSwatches.addEventListener('click', (e) => {
+    const btn = e.target.closest('.subject-color-swatch');
+    if (!btn || !newSubjectSwatches.contains(btn)) return;
+    newSubjectSwatches.querySelectorAll('.subject-color-swatch').forEach((b) => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
 
-  const newTask = {
-    title,
-    subject_id,
-    due_at,
-    notes,
-    priority: 'medium',
-    status: 'Not Started',
-    archived: 0
-  };
+  addSubjectBtn.addEventListener('click', () => {
+    resetNewSubjectModal();
+    newSubjectModal.style.display = 'flex';
+  });
 
-  await store.addTasks([newTask]);
-  newTaskModal.style.display = 'none';
-});
+  newSubjectCancel.addEventListener('click', () => {
+    newSubjectModal.style.display = 'none';
+  });
 
-addItemsBtn.addEventListener('click', () => {
-  if (store.currentPaste) {
-    store.addTasks(store.currentPaste);
-    store.clearExtracted();
+  newSubjectModal.addEventListener('click', (e) => {
+    if (e.target === newSubjectModal) {
+      newSubjectModal.style.display = 'none';
+    }
+  });
+
+  newSubjectSave.addEventListener('click', async () => {
+    const name = newSubjectName.value.trim();
+    if (!name) {
+      alert('Please enter a subject name');
+      return;
+    }
+    const color = getSelectedSubjectColor();
+    const ok = await store.addSubject({ name, color });
+    if (ok) newSubjectModal.style.display = 'none';
+  });
+
+  extractBtn.addEventListener('click', async () => {
+    const text = pasteInput.value;
+    if (!text.trim()) return;
+
+    extractBtn.innerHTML = '<span class="loader-spinner"></span>';
+    extractBtn.disabled = true;
+
+    const items = await extractTasksFromText(text);
+
+    extractBtn.innerHTML = 'Extract with AI →';
+    extractBtn.disabled = false;
+
+    store.setExtracted(items);
+  });
+
+  clearBtn.addEventListener('click', () => {
     pasteInput.value = '';
-  }
-});
-});
-
-extractBtn.addEventListener('click', async () => {
-  const text = pasteInput.value;
-  if (!text.trim()) return;
-  
-  extractBtn.innerHTML = '<span class="loader-spinner"></span>';
-  extractBtn.disabled = true;
-  
-  const items = await extractTasksFromText(text);
-  
-  extractBtn.innerHTML = 'Extract with AI →';
-  extractBtn.disabled = false;
-  
-  store.setExtracted(items);
-});
-
-clearBtn.addEventListener('click', () => {
-  pasteInput.value = '';
-  store.clearExtracted();
-});
-
-addItemsBtn.addEventListener('click', () => {
-  if (store.currentPaste) {
-    store.addTasks(store.currentPaste);
     store.clearExtracted();
-    pasteInput.value = '';
-  }
-});
+  });
 
-downloadBtn.addEventListener('click', () => {
-  downloadData();
+  addItemsBtn.addEventListener('click', () => {
+    if (store.currentPaste) {
+      store.addTasks(store.currentPaste);
+      store.clearExtracted();
+      pasteInput.value = '';
+    }
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    downloadData();
+  });
 });

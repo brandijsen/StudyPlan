@@ -34,6 +34,31 @@ export const store = {
     }
   },
 
+  async addSubject({ name, color }) {
+    try {
+      const res = await fetch('/api/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, color })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(data.message || 'Failed to add subject');
+        return false;
+      }
+
+      const subsRes = await fetch('/api/subjects');
+      this.subjects = await subsRes.json();
+      this.notify();
+      return true;
+    } catch (e) {
+      console.error('Failed to add subject', e);
+      alert('Network error. Please try again.');
+      return false;
+    }
+  },
+
   // ================= UPDATED FUNCTION =================
   async addTasks(newTasks) {
     try {
