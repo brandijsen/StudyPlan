@@ -28,10 +28,17 @@ let activeFocusTaskId = null;
 
 // Timer Logic
 const FULL_DASH_ARRAY = 283;
-const TIME_LIMIT = 25 * 60;
+let TIME_LIMIT = 25 * 60;
 let timePassed = 0;
 let timeLeft = TIME_LIMIT;
 let timerInterval = null;
+
+const timerDurationInput = document.getElementById('timer-duration-input');
+
+function getTimerDuration() {
+  const val = parseInt(timerDurationInput.value);
+  return (val > 0 && val <= 120) ? val * 60 : 25 * 60;
+}
 
 function formatTimeLeft(time) {
   const minutes = Math.floor(time / 60);
@@ -56,6 +63,9 @@ function setCircleDasharray() {
 
 function startTimer() {
   if (timerInterval) return;
+  TIME_LIMIT = getTimerDuration();
+  if (timePassed === 0) timeLeft = TIME_LIMIT;
+  timerDurationInput.disabled = true;
   timerStartBtn.classList.add('hidden');
   timerPauseBtn.classList.remove('hidden');
   
@@ -85,11 +95,37 @@ function resetTimer() {
   clearInterval(timerInterval);
   timerInterval = null;
   timePassed = 0;
+  TIME_LIMIT = getTimerDuration();
   timeLeft = TIME_LIMIT;
+  timerDurationInput.disabled = false;
   timerText.innerHTML = formatTimeLeft(timeLeft);
   timerPathRemaining.setAttribute("stroke-dasharray", "283 283");
   timerPauseBtn.classList.add('hidden');
   timerStartBtn.classList.remove('hidden');
+}
+
+timerDurationInput.addEventListener('change', () => {
+  if (!timerInterval && timePassed === 0) {
+    TIME_LIMIT = getTimerDuration();
+    timeLeft = TIME_LIMIT;
+    timerText.innerHTML = formatTimeLeft(timeLeft);
+    timerPathRemaining.setAttribute("stroke-dasharray", "283 283");
+  }
+});
+
+// Panel toggle for focus mode
+const panelToggleBtn = document.getElementById('panel-toggle-btn');
+const panelToggleIcon = document.getElementById('panel-toggle-icon');
+const panel = document.querySelector('.panel');
+let panelCollapsed = false;
+
+if (panelToggleBtn) {
+  panelToggleBtn.addEventListener('click', () => {
+    panelCollapsed = !panelCollapsed;
+    panel.classList.toggle('panel-collapsed', panelCollapsed);
+    // Flip arrow direction
+    panelToggleIcon.style.transform = panelCollapsed ? 'rotate(180deg)' : '';
+  });
 }
 
 if(timerStartBtn) timerStartBtn.addEventListener('click', startTimer);
