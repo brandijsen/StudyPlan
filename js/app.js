@@ -9,6 +9,7 @@ let selectedDate = null;
 let currentView = 'calendar'; // 'calendar', 'all-tasks', 'archived'
 
 const tasksSection = document.getElementById('tasks-section');
+const focusSection = document.getElementById('focus-section');
 const extractPreview = document.getElementById('extract-preview');
 const pasteInput = document.getElementById('paste-input');
 const extractBtn = document.getElementById('extract-btn');
@@ -26,6 +27,216 @@ const newTaskDate = document.getElementById('new-task-date');
 const newTaskNotes = document.getElementById('new-task-notes');
 const newTaskCancel = document.getElementById('new-task-cancel');
 const newTaskSave = document.getElementById('new-task-save');
+
+// Timer elements
+const timerText = document.getElementById('timer-text');
+const timerPathRemaining = document.getElementById('timer-path-remaining');
+const timerStartBtn = document.getElementById('timer-start-btn');
+const timerPauseBtn = document.getElementById('timer-pause-btn');
+const timerResetBtn = document.getElementById('timer-reset-btn');
+
+// Task elements
+const focusTaskList = document.getElementById('focus-task-list');
+const activeFocusTask = document.getElementById('active-focus-task');
+let activeFocusTaskId = null;
+
+// Timer Logic
+const FULL_DASH_ARRAY = 283;
+let TIME_LIMIT = 25 * 60;
+let timePassed = 0;
+let timeLeft = TIME_LIMIT;
+let timerInterval = null;
+
+const timerDurationInput = document.getElementById('timer-duration-input');
+
+function getTimerDuration() {
+  const val = parseInt(timerDurationInput.value);
+  return (val > 0 && val <= 120) ? val * 60 : 25 * 60;
+}
+
+function formatTimeLeft(time) {
+  const minutes = Math.floor(time / 60);
+  let seconds = time % 60;
+  if (seconds < 10) {
+    seconds = `0${seconds}`;
+  }
+  return `${minutes}:${seconds}`;
+}
+
+function calculateTimeFraction() {
+  const rawTimeFraction = timeLeft / TIME_LIMIT;
+  return rawTimeFraction - (1 / TIME_LIMIT) * (1 - rawTimeFraction);
+}
+
+function setCircleDasharray() {
+  const circleDasharray = `${(
+    calculateTimeFraction() * FULL_DASH_ARRAY
+  ).toFixed(0)} 283`;
+  timerPathRemaining.setAttribute("stroke-dasharray", circleDasharray);
+}
+
+function startTimer() {
+  if (timerInterval) return;
+  TIME_LIMIT = getTimerDuration();
+  if (timePassed === 0) timeLeft = TIME_LIMIT;
+  timerDurationInput.disabled = true;
+  timerStartBtn.classList.add('hidden');
+  timerPauseBtn.classList.remove('hidden');
+  
+  timerInterval = setInterval(() => {
+    timePassed += 1;
+    timeLeft = TIME_LIMIT - timePassed;
+    timerText.innerHTML = formatTimeLeft(timeLeft);
+    setCircleDasharray();
+
+    if (timeLeft === 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      alert('Focus session complete!');
+      resetTimer();
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timerPauseBtn.classList.add('hidden');
+  timerStartBtn.classList.remove('hidden');
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timePassed = 0;
+  TIME_LIMIT = getTimerDuration();
+  timeLeft = TIME_LIMIT;
+  timerDurationInput.disabled = false;
+  timerText.innerHTML = formatTimeLeft(timeLeft);
+  timerPathRemaining.setAttribute("stroke-dasharray", "283 283");
+  timerPauseBtn.classList.add('hidden');
+  timerStartBtn.classList.remove('hidden');
+}
+
+timerDurationInput.addEventListener('change', () => {
+  if (!timerInterval && timePassed === 0) {
+    TIME_LIMIT = getTimerDuration();
+    timeLeft = TIME_LIMIT;
+    timerText.innerHTML = formatTimeLeft(timeLeft);
+    timerPathRemaining.setAttribute("stroke-dasharray", "283 283");
+  }
+});
+
+// Panel toggle for focus mode
+const panelToggleBtn = document.getElementById('panel-toggle-btn');
+const panelToggleIcon = document.getElementById('panel-toggle-icon');
+const panel = document.querySelector('.panel');
+const appEl = document.querySelector('.app');
+let panelCollapsed = false;
+
+if (panelToggleBtn) {
+  panelToggleBtn.addEventListener('click', () => {
+    panelCollapsed = !panelCollapsed;
+    panel.classList.toggle('panel-collapsed', panelCollapsed);
+    appEl.style.transition = 'grid-template-columns 0.3s cubic-bezier(0.4,0,0.2,1)';
+    appEl.style.setProperty('--panel-width', panelCollapsed ? '48px' : '340px');
+    panelToggleIcon.style.transform = panelCollapsed ? 'rotate(180deg)' : '';
+  });
+}
+
+if(timerStartBtn) timerStartBtn.addEventListener('click', startTimer);
+if(timerPauseBtn) timerPauseBtn.addEventListener('click', pauseTimer);
+if(timerResetBtn) timerResetBtn.addEventListener('click', resetTimer);
+
+function renderFocusTasks() {
+  if(!focusTaskList || !activeFocusTask) return;
+  const tasks = store.tasks;
+  const subjects = store.subjects;
+  
+  const activeTasks = tasks.filter(t => !t.archived && t.status !== 'Done');
+  const now = new Date();
+  
+  const dueSoon = [];
+  activeTasks.forEach(t => {
+    if(!t.due_at) return;
+    const d = new Date(t.due_at);
+    const diffDays = (d - now) / (1000 * 60 * 60 * 24);
+    if (diffDays <= 3) dueSoon.push(t);
+  });
+  
+  dueSoon.sort((a,b) => new Date(a.due_at) - new Date(b.due_at));
+  
+  if (dueSoon.length === 0) {
+    focusTaskList.innerHTML = '<div class="tasks-empty-state">No tasks due soon to focus on.</div>';
+  } else {
+    focusTaskList.innerHTML = dueSoon.map(t => {
+      const sub = subjects.find(s => s.id === t.subject_id) || subjects[0] || { short_code: 'Gen' };
+      let pillClass = '';
+      if(sub.code === 'CS') pillClass = 'pill-blue';
+      else if(sub.code === 'Maths') pillClass = 'pill-green';
+      else if(sub.code === 'English') pillClass = 'pill-purple';
+      else pillClass = 'pill-amber';
+      
+      return `
+        <div class="focus-task-item" data-id="${t.id}">
+          <div class="task-name">${t.title}</div>
+          <div class="task-meta">
+            <span class="task-pill ${pillClass}">${sub.short_code}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    document.querySelectorAll('.focus-task-item').forEach(el => {
+      el.addEventListener('click', () => {
+        activeFocusTaskId = el.dataset.id;
+        renderFocusTasks();
+      });
+    });
+  }
+  
+  if (activeFocusTaskId) {
+    const activeT = store.tasks.find(t => t.id === activeFocusTaskId);
+    if (activeT) {
+      const sub = subjects.find(s => s.id === activeT.subject_id) || subjects[0] || { name: 'General' };
+      activeFocusTask.innerHTML = `
+        <div class="task-info" style="width: 100%">
+          <div class="task-name" style="font-size: 16px;">${activeT.title}</div>
+          <div class="task-meta">
+            <span class="task-pill pill-amber">Due ${formatDate(activeT.due_at)}</span>
+            <span class="task-pill">${sub.name}</span>
+          </div>
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <button class="btn btn-primary complete-focus-task-btn" data-id="${activeT.id}">Mark Done</button>
+            <button class="btn clear-focus-task-btn">Clear</button>
+          </div>
+        </div>
+      `;
+      
+      const completeBtn = activeFocusTask.querySelector('.complete-focus-task-btn');
+      if (completeBtn) {
+        completeBtn.addEventListener('click', () => {
+          store.toggleTaskStatus(activeT.id);
+          activeFocusTaskId = null;
+          renderFocusTasks();
+        });
+      }
+      
+      const clearBtn = activeFocusTask.querySelector('.clear-focus-task-btn');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          activeFocusTaskId = null;
+          renderFocusTasks();
+        });
+      }
+    } else {
+      activeFocusTaskId = null;
+      activeFocusTask.innerHTML = '<div class="no-task-selected">No task selected. Choose one below.</div>';
+    }
+  } else {
+    activeFocusTask.innerHTML = '<div class="no-task-selected">No task selected. Choose one below.</div>';
+  }
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return 'No Date';
@@ -515,6 +726,7 @@ function renderExtraction() {
 store.subscribe(renderTasks);
 store.subscribe(renderExtraction);
 store.subscribe(renderCalendar);
+store.subscribe(renderFocusTasks);
 
 document.addEventListener('DOMContentLoaded', () => {
   store.fetchInitialData();
@@ -522,6 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const calendarBtn = document.getElementById('calendar-btn');
   const allTasksBtn = document.getElementById('all-tasks-btn');
   const archivedTasksBtn = document.getElementById('archived-tasks-btn');
+  const focusModeBtn = document.getElementById('focus-mode-btn');
 
   function updateSidebarActive(id) {
     document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
@@ -531,6 +744,8 @@ document.addEventListener('DOMContentLoaded', () => {
   calendarBtn.addEventListener('click', () => {
     currentView = 'calendar';
     document.querySelector('.cal-section').classList.remove('hidden');
+    document.getElementById('tasks-section').classList.remove('hidden');
+    document.getElementById('focus-section').classList.add('hidden');
     updateSidebarActive('calendar-btn');
     renderTasks();
   });
@@ -538,6 +753,8 @@ document.addEventListener('DOMContentLoaded', () => {
   allTasksBtn.addEventListener('click', () => {
     currentView = 'all-tasks';
     document.querySelector('.cal-section').classList.add('hidden');
+    document.getElementById('tasks-section').classList.remove('hidden');
+    document.getElementById('focus-section').classList.add('hidden');
     updateSidebarActive('all-tasks-btn');
     renderTasks();
   });
@@ -545,9 +762,22 @@ document.addEventListener('DOMContentLoaded', () => {
   archivedTasksBtn.addEventListener('click', () => {
     currentView = 'archived';
     document.querySelector('.cal-section').classList.add('hidden');
+    document.getElementById('tasks-section').classList.remove('hidden');
+    document.getElementById('focus-section').classList.add('hidden');
     updateSidebarActive('archived-tasks-btn');
     renderTasks();
   });
+
+  if(focusModeBtn) {
+    focusModeBtn.addEventListener('click', () => {
+      currentView = 'focus';
+      document.querySelector('.cal-section').classList.add('hidden');
+      document.getElementById('tasks-section').classList.add('hidden');
+      document.getElementById('focus-section').classList.remove('hidden');
+      updateSidebarActive('focus-mode-btn');
+      renderFocusTasks();
+    });
+  }
 
   document.getElementById('cal-prev').addEventListener('click', () => {
     currentMonthDate.setMonth(currentMonthDate.getMonth() - 1);
