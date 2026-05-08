@@ -631,7 +631,8 @@ body {
 /* Task Addition Model */
 
 
-#new-task-modal{
+#new-task-modal,
+#new-subject-modal {
 
   position: fixed;
   inset: 0;
@@ -643,7 +644,8 @@ body {
 }
 
 
-#new-task-modal .modal-card {
+#new-task-modal .modal-card,
+#new-subject-modal .modal-card {
   width: 100%;
   max-width: 360px;
   background-color: #0f172a;                     
@@ -656,7 +658,8 @@ body {
 }
 
 
-#new-task-modal .modal-card h3 {
+#new-task-modal .modal-card h3,
+#new-subject-modal .modal-card h3 {
   margin: 0 0 12px;
   font-size: 18px;
   font-weight: 600;
@@ -665,7 +668,8 @@ body {
 }
 
 
-#new-task-modal label {
+#new-task-modal label,
+#new-subject-modal label {
   display: block;
   font-size: 11px;
   font-weight: 600;
@@ -677,7 +681,9 @@ body {
 
 
 #new-task-modal input,
-#new-task-modal select {
+#new-task-modal select,
+#new-subject-modal input,
+#new-subject-modal select {
   width: 100%;
   box-sizing: border-box;
   font-size: 13px;
@@ -692,13 +698,16 @@ body {
 }
 
 
-#new-task-modal input::placeholder {
+#new-task-modal input::placeholder,
+#new-subject-modal input::placeholder {
   color: #6b7280;
 }
 
 
 #new-task-modal input:focus,
-#new-task-modal select:focus {
+#new-task-modal select:focus,
+#new-subject-modal input:focus,
+#new-subject-modal select:focus {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.35);
@@ -706,7 +715,8 @@ body {
 }
 
 
-#new-task-modal .modal-card > div:last-child {
+#new-task-modal .modal-card > div:last-child,
+#new-subject-modal .modal-card > div:last-child {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -714,19 +724,22 @@ body {
 }
 
 
-#new-task-modal .btn {
+#new-task-modal .btn,
+#new-subject-modal .btn {
   font-size: 12px;
   padding: 6px 10px;
   border-radius: 999px;
 }
 
-#new-task-modal .btn:not(.btn-primary) {
+#new-task-modal .btn:not(.btn-primary),
+#new-subject-modal .btn:not(.btn-primary) {
   background: rgba(15, 23, 42, 0.9);
   color: #e5e7eb;
   border: 1px solid #4b5563;
 }
 
-#new-task-modal .btn:not(.btn-primary):hover {
+#new-task-modal .btn:not(.btn-primary):hover,
+#new-subject-modal .btn:not(.btn-primary):hover {
   background: #020617;
 }
 
@@ -748,8 +761,36 @@ body {
 
 
 @media (max-width: 480px) {
-  #new-task-modal .modal-card {
+  #new-task-modal .modal-card,
+  #new-subject-modal .modal-card {
     max-width: 90vw;
     padding: 16px 14px 12px;
   }
+}
+
+#new-subject-modal .subject-color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+#new-subject-modal .subject-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+#new-subject-modal .subject-color-swatch:hover {
+  transform: scale(1.06);
+}
+
+#new-subject-modal .subject-color-swatch--selected {
+  box-shadow: 0 0 0 2px #0f172a, 0 0 0 4px #a5b4fc;
 }
